@@ -1,0 +1,50 @@
+name: CD
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  delivery-preview:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build production bundle
+        run: npm run build
+
+      - name: Pack delivery artifact
+        run: tar -czf carliapi-dist.tar.gz dist package.json package-lock.json Dockerfile
+
+      - name: Upload delivery artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: carliapi-dist
+          path: carliapi-dist.tar.gz
+
+      - name: Build Docker image
+        run: docker build -t carliapi:${{ github.sha }} .
+
+      - name: Run container smoke test
+        run: |
+          docker run -d --name carliapi-smoke -p 3000:3000 carliapi:${{ github.sha }}
+          sleep 8
+          curl --fail http://127.0.0.1:3000/health
+
+      - name: Cleanup container
+        if: always()
+        run: docker rm -f carliapi-smoke || true
