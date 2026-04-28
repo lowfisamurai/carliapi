@@ -36,3 +36,10 @@ jobs:
 
       - name: Build application
         run: npm run build
+
+      - name: Discord Alert Notification
+        if: always()
+        run: |
+          curl -H "Content-Type: application/json" \
+          -d '{"content": "🚨 [Carli API] O Pipeline de CI (Lint, Testes Unitários e Build) acabou de rodar no GitHub Actions! Confira o status."}' \
+          ${{ secrets.DISCORD_WEBHOOK }}
